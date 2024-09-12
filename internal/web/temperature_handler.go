@@ -36,7 +36,7 @@ func (h *WeatherHandler) GetWeather(w http.ResponseWriter, r *http.Request) {
 	// Validação do CEP: deve conter exatamente 8 dígitos numéricos
 	validCep := regexp.MustCompile(`^\d{8}$`)
 	if !validCep.MatchString(cep) {
-		http.Error(w, "Invalid CEP format. CEP must be 8 digits.", http.StatusBadRequest)
+		http.Error(w, "invalid zipcode", http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -44,14 +44,16 @@ func (h *WeatherHandler) GetWeather(w http.ResponseWriter, r *http.Request) {
 	dto := usecase.TemperatureInputDTO{Cep: cep}
 	weather, err := h.UseCase.Execute(r.Context(), dto)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get weather data: %v", err), http.StatusInternalServerError)
+		if err.Error() == "CEP not found" {
+			http.Error(w, "can not find zipcode", http.StatusNotFound)
+		} else {
+			http.Error(w, fmt.Sprintf("Failed to get weather data: %v", err), http.StatusInternalServerError)
+		}
 		return
 	}
 
 	// Definindo o cabeçalho da resposta e enviando o JSON com os dados do clima
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(weather); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
-	}
+	json.NewEncoder(w).Encode(weather)
 }

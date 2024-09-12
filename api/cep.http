@@ -3,6 +3,6 @@ Host: 127.0.0.1:8080
 Content-Type: application/json
 
 {
-  "cep": "02420001"
+  "cep": "00000000"
 
 }
