@@ -1,8 +1,12 @@
 package web
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"regexp"
 
 	"github.com/thiagohmm/fulcycleTemperaturaPorCep/internal/usecase"
 )
@@ -12,19 +16,42 @@ type WeatherHandler struct {
 }
 
 func (h *WeatherHandler) GetWeather(w http.ResponseWriter, r *http.Request) {
-	cep := r.URL.Query().Get("cep")
-	var dto usecase.TemperatureInputDTO
-	if len(cep) != 8 {
-		http.Error(w, "Invalid CEP", http.StatusBadRequest)
+	var req usecase.TemperatureInputDTO
+	// Logando o corpo da requisição
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
-	dto = usecase.TemperatureInputDTO{Cep: cep}
+	fmt.Println("Request Body: ", string(bodyBytes))
 
+	// Agora, decodifique o corpo do request
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes)) // Reconstituindo o body para o decoder
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+	cep := req.Cep
+
+	// Validação do CEP: deve conter exatamente 8 dígitos numéricos
+	validCep := regexp.MustCompile(`^\d{8}$`)
+	if !validCep.MatchString(cep) {
+		http.Error(w, "Invalid CEP format. CEP must be 8 digits.", http.StatusBadRequest)
+		return
+	}
+
+	// Chamando o caso de uso para obter o clima
+	dto := usecase.TemperatureInputDTO{Cep: cep}
 	weather, err := h.UseCase.Execute(r.Context(), dto)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to get weather data: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(w).Encode(weather)
+	// Definindo o cabeçalho da resposta e enviando o JSON com os dados do clima
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(weather); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
+	}
 }

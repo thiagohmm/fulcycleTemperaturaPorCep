@@ -12,9 +12,10 @@ type TemperatureInputDTO struct {
 }
 
 type TemperatureOutputDTO struct {
-	Celsius   float64 `json:"celsius"`
-	Farenheit float64 `json:"farenheit"`
-	Kelvin    float64 `json:"kelvin"`
+	City      string  `json:"city"`
+	Celsius   float64 `json:"temp_C"`
+	Farenheit float64 `json:"temp_F"`
+	Kelvin    float64 `json:"temp_K"`
 }
 
 type TemperatureUseCase struct {
@@ -30,17 +31,18 @@ func NewTemperatureUseCase(apiClient infraestructure.GetTemperatureForCep) *Temp
 }
 
 func (t *TemperatureUseCase) Execute(ctx context.Context, input TemperatureInputDTO) (*TemperatureOutputDTO, error) {
-	wheatherK, err := t.Apiclient.GetTemperatureByCep(ctx, input.Cep)
+	wheatherK, city, err := t.Apiclient.GetTemperatureByCep(ctx, input.Cep)
 	if err != nil {
 		return nil, err
 	}
 
-	temperature, err := entity.NewTemperature(wheatherK)
+	temperature, err := entity.NewTemperature(city, wheatherK)
 	if err != nil {
 		return nil, err
 	}
 
 	return &TemperatureOutputDTO{
+		City:      temperature.City,
 		Celsius:   temperature.Celsius,
 		Farenheit: temperature.Farenheit,
 		Kelvin:    temperature.Kelvin,

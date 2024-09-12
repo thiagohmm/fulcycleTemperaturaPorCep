@@ -29,7 +29,7 @@ func main() {
 	r.Use(middleware.Recoverer) // Recuperar de panics
 
 	// Definir rota para o endpoint
-	r.Get("/weather", handler.GetWeather)
+	r.Post("/weather", handler.GetWeather)
 
 	// Iniciar o servidor HTTP
 	log.Println("Server running on :8080")

@@ -1,0 +1,8 @@
+POST http://127.0.0.1:8080/weather HTTP/1.1
+Host: 127.0.0.1:8080
+Content-Type: application/json
+
+{
+  "cep": "02420001"
+
+}

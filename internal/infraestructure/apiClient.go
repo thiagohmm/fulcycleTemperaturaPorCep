@@ -11,19 +11,26 @@ import (
 
 // Interface para buscar a temperatura por CEP
 type GetTemperatureForCep interface {
-	GetTemperatureByCep(ctx context.Context, cep string) (float64, error)
+	GetTemperatureByCep(ctx context.Context, cep string) (float64, string, error)
 }
 
 // Estrutura que implementa a interface
 type OpenWeatherClient struct {
-	apiKey string
+	apiKey             string
+	getCepDataFunc     func(ctx context.Context, cep string) (*ViaCepResponse, error)
+	getGeoDataFunc     func(ctx context.Context, bairro, localidade string) (*GeoResponse, error)
+	getWeatherDataFunc func(ctx context.Context, lat, lon float64) (*WeatherResponse, error)
 }
 
 // Construtor para o cliente OpenWeather
 func NewOpenWeatherClient(apiKey string) *OpenWeatherClient {
-	return &OpenWeatherClient{
+	client := &OpenWeatherClient{
 		apiKey: apiKey,
 	}
+	client.getCepDataFunc = client.getCepData
+	client.getGeoDataFunc = client.getGeoData
+	client.getWeatherDataFunc = client.getWeatherData
+	return client
 }
 
 // Resposta da API ViaCEP
@@ -126,21 +133,21 @@ func (c *OpenWeatherClient) getWeatherData(ctx context.Context, lat, lon float64
 }
 
 // Método principal da interface para obter a temperatura por CEP
-func (c *OpenWeatherClient) GetTemperatureByCep(ctx context.Context, cep string) (float64, error) {
-	cepData, err := c.getCepData(ctx, cep)
+func (c *OpenWeatherClient) GetTemperatureByCep(ctx context.Context, cep string) (float64, string, error) {
+	cepData, err := c.getCepDataFunc(ctx, cep)
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 
-	geoData, err := c.getGeoData(ctx, cepData.Bairro, cepData.Localidade)
+	geoData, err := c.getGeoDataFunc(ctx, cepData.Bairro, cepData.Localidade)
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 
-	weatherData, err := c.getWeatherData(ctx, geoData.Lat, geoData.Lon)
+	weatherData, err := c.getWeatherDataFunc(ctx, geoData.Lat, geoData.Lon)
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 
-	return weatherData.Main.Temp, nil
+	return weatherData.Main.Temp, cepData.Localidade, nil
 }
