@@ -1,18 +1,17 @@
-FROM golang:1.23 AS build
+# Etapa de build
+FROM golang:1.23-alpine AS build
 WORKDIR /app
-
-# Copia todos os arquivos para o container
 COPY . .
 
-# Define a variável de ambiente CGO_ENABLED corretamente
+# Instala o certificado SSL necessário
+RUN apk add --no-cache ca-certificates && update-ca-certificates
+
+# Correção para o comando de build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o cloudrun ./cmd/main.go
 
-# Usando scratch como imagem final
-FROM scratch
+# Etapa final
+FROM alpine:latest
 WORKDIR /app
-
-# Copia o binário gerado da etapa anterior
 COPY --from=build /app/cloudrun .
-
-# Define o entrypoint para o binário
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ 
 ENTRYPOINT ["./cloudrun"]
